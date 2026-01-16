@@ -1,12 +1,16 @@
-# 🛡️ Privacy CSV Shield (Pro)
+# 🛡️ Local CSV Anonymizer
 
-**Privacy CSV Shield** 是一個基於瀏覽器運作的輕量級 CSV 去識別化工具 (De-identification Tool)。
+**Local CSV Anonymizer** 是一個基於瀏覽器運作的輕量級 CSV 去識別化工具 (De-identification Tool)。
 
 所有的資料處理皆在您的**本機端 (Client-side)** 完成，**資料絕對不會上傳至任何伺服器**。這使得它非常適合用於處理包含敏感個資（如 Email、身分證字號、電話）的資料集，確保在進行數據分析或第三方共享前的資安合規。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Browser-green.svg)
 ![Security](https://img.shields.io/badge/security-Web%20Crypto%20API-red.svg)
+
+---
+
+![介面截圖](screenshot.png)
 
 ---
 
@@ -35,8 +39,8 @@
 
 ### 方法 2：Clone 專案
 ```bash
-git clone [https://github.com/your-username/privacy-csv-shield.git](https://github.com/your-username/privacy-csv-shield.git)
-cd privacy-csv-shield
+git clone [https://github.com/your-username/local-csv-anonymizer.git](https://github.com/your-username/local-csv-anonymizer.git)
+cd local-csv-anonymizer
 # 直接用瀏覽器開啟 index.html
 
 ```
@@ -63,7 +67,7 @@ cd privacy-csv-shield
 ## 📂 專案結構
 
 ```text
-privacy-csv-shield/
+local-csv-anonymizer/
 ├── index.html          # 核心程式 (All-in-One)
 ├── README.md           # 說明文件
 ├── LICENSE             # MIT 授權條款
@@ -101,4 +105,4 @@ privacy-csv-shield/
 
 ## 📜 License
 
-[MIT](LICENSE)
+[MIT](https://www.google.com/search?q=LICENSE)
