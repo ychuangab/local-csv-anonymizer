@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy CSV Shield (Pro) - 本機去識別化工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; }
+        
+        /* 自定義捲軸 */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Loading Spinner */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 lg:p-10 h-screen flex flex-col">
+
+    <header class="max-w-7xl mx-auto w-full mb-6 flex items-center gap-4 flex-shrink-0">
+        <div class="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-500/20">
+            <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight">Privacy CSV Shield</h1>
+            <p class="text-slate-400 text-sm mt-1">本機端 CSV 去識別化工具 | 支援 SHA-256 雜湊、智慧日期標準化</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow overflow-hidden">
+        
+        <section class="lg:col-span-4 glass-card p-6 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
+            <div class="flex items-center gap-2">
+                <span class="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">1</span>
+                <h2 class="text-lg font-semibold text-white">檔案與設定</h2>
+            </div>
+
+            <div id="drop-zone" class="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-indigo-500 hover:bg-slate-800/80 transition-all cursor-pointer bg-slate-800/30 group">
+                <input type="file" id="file-input" class="hidden" accept=".csv,.tsv,.txt">
+                <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto mb-3 text-slate-500 group-hover:text-indigo-400 transition-colors"></i>
+                <p class="text-slate-300 font-medium truncate px-2" id="file-name-display">點擊選擇 CSV 檔案</p>
+                <p class="text-slate-500 text-xs mt-2">或將檔案拖曳至此</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-800/80 p-3 rounded border border-slate-700">
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">分隔符</label>
+                    <div id="detected-delimiter" class="text-sm font-mono text-indigo-300">-</div>
+                </div>
+                <div class="bg-slate-800/80 p-3 rounded border border-slate-700">
+                    <label class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">資料總筆數</label>
+                    <div id="row-count" class="text-sm font-mono text-indigo-300">-</div>
+                </div>
+            </div>
+
+            <div class="space-y-4 border-t border-slate-700 pt-4">
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400">輸出檔名</label>
+                    <input type="text" id="output-filename" value="anonymized.csv" class="w-full bg-slate-900 p-3 rounded border border-slate-700 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400">編碼格式 (解決 Excel 亂碼)</label>
+                    <select id="excel-bom" class="w-full bg-slate-900 p-3 rounded border border-slate-700 text-sm focus:outline-none focus:border-indigo-500">
+                        <option value="yes">UTF-8 with BOM (Excel 推薦)</option>
+                        <option value="no">UTF-8 標準</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-auto space-y-3 pt-4">
+                <button id="btn-auto-rule" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-slate-600">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i> 智慧判斷規則
+                </button>
+                <div class="flex gap-3">
+                    <button id="btn-download" disabled class="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+                        <span id="btn-download-text" class="flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> 生成並下載</span>
+                        <div id="btn-download-spinner" class="spinner hidden"></div>
+                    </button>
+                    <button id="btn-reset" title="重置" class="px-4 bg-slate-700 hover:bg-red-900/50 hover:text-red-200 text-slate-300 rounded-lg border border-slate-600 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-8 glass-card p-0 flex flex-col h-[800px] lg:h-auto overflow-hidden">
+            
+            <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 bg-slate-800/40">
+                <div class="flex items-center gap-2">
+                    <span class="bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">2</span>
+                    <h2 class="text-lg font-semibold text-white">規則與即時預覽</h2>
+                    <span id="col-count-badge" class="ml-2 text-xs bg-slate-800 px-2 py-0.5 rounded border border-slate-600 text-slate-400">0 欄</span>
+                </div>
+
+                <div class="flex items-center gap-3 text-xs">
+                    <div class="flex items-center bg-slate-900 rounded border border-slate-700 px-2 h-8">
+                        <span class="text-slate-400 mr-2">顯示筆數:</span>
+                        <select id="preview-limit" class="bg-slate-900 text-white h-full focus:outline-none cursor-pointer">
+                            <option value="10">10 筆</option>
+                            <option value="50" selected>50 筆</option>
+                            <option value="100">100 筆</option>
+                            <option value="all">全部</option>
+                        </select>
+                    </div>
+                    
+                    <label class="flex items-center bg-slate-900 rounded border border-slate-700 px-3 h-8 cursor-pointer select-none hover:bg-slate-800 transition-colors">
+                        <input type="checkbox" id="toggle-full-text" class="mr-2 accent-indigo-500 w-3 h-3">
+                        <span class="text-slate-200">顯示完整內容</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex-grow overflow-auto custom-scrollbar bg-slate-900/30 relative">
+                <table class="w-full text-sm text-left border-collapse">
+                    <thead class="text-slate-300 sticky top-0 z-10 shadow-md">
+                        <tr>
+                            <th class="p-3 bg-slate-800 border-b border-slate-600 font-medium w-12 text-center">#</th>
+                            <th class="p-3 bg-slate-800 border-b border-slate-600 font-medium min-w-[200px]">原始資料 (Raw)</th>
+                            <th class="p-3 bg-slate-800 border-b border-slate-600 font-medium min-w-[200px] text-indigo-300">去識別化預覽 (Result)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-body" class="divide-y divide-slate-800">
+                        <tr>
+                            <td colspan="3" class="p-20 text-center text-slate-500">
+                                <div class="flex flex-col items-center gap-2">
+                                    <i data-lucide="table" class="w-8 h-8 opacity-20"></i>
+                                    <p>請先上傳 CSV 檔案以檢視內容</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-4 border-t border-slate-700 bg-slate-800/40">
+                <p class="text-xs text-slate-400 mb-3 font-semibold uppercase tracking-wider">欄位規則設定 (Column Rules)</p>
+                <div id="column-rules-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                    <div class="text-slate-500 text-xs italic p-2">尚未載入欄位...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // 核心狀態
+        let state = {
+            rawRows: [], 
+            headers: [], 
+            columnRules: {}, 
+            delimiter: '',
+            previewLimit: 50,    // 預設顯示 50 筆
+            showFullText: false  // 預設截斷長文字
+        };
+
+        const elements = {
+            fileInput: document.getElementById('file-input'),
+            dropZone: document.getElementById('drop-zone'),
+            fileNameDisplay: document.getElementById('file-name-display'),
+            previewBody: document.getElementById('preview-body'),
+            rulesContainer: document.getElementById('column-rules-container'),
+            btnDownload: document.getElementById('btn-download'),
+            btnDownloadText: document.getElementById('btn-download-text'),
+            btnDownloadSpinner: document.getElementById('btn-download-spinner'),
+            rowCount: document.getElementById('row-count'),
+            delimiterDisplay: document.getElementById('detected-delimiter'),
+            previewLimitSelect: document.getElementById('preview-limit'),
+            fullTextToggle: document.getElementById('toggle-full-text')
+        };
+
+        // --- 1. 去識別化引擎 (Async) ---
+
+        // Web Crypto SHA-256
+        async function secureHash(message) {
+            if (!message) return "";
+            const msgBuffer = new TextEncoder().encode(String(message));
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            // 轉為 Hex 並截取前 16 碼
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+        }
+
+        const transforms = {
+            keep: async (val) => val,
+            empty: async () => '',
+            mask: async (val) => {
+                const s = String(val);
+                if (s.length <= 4) return '****';
+                return s.slice(0, -4).replace(/./g, '*') + s.slice(-4);
+            },
+            hash: async (val) => await secureHash(val),
+            date_ymd: async (val) => {
+                if (!val) return "";
+                const d = dayjs(val);
+                return d.isValid() ? d.format('YYYY-MM-DD') : val; 
+            }
+        };
+
+        // --- 2. 檔案處理 ---
+
+        elements.dropZone.onclick = () => elements.fileInput.click();
+        
+        elements.dropZone.ondragover = (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('border-indigo-500', 'bg-slate-800/80');
+        };
+        elements.dropZone.ondragleave = () => {
+            elements.dropZone.classList.remove('border-indigo-500', 'bg-slate-800/80');
+        };
+        elements.dropZone.ondrop = (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('border-indigo-500', 'bg-slate-800/80');
+            if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        };
+
+        elements.fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+        function handleFile(file) {
+            if (!file) return;
+            elements.fileNameDisplay.innerText = file.name;
+            elements.btnDownload.disabled = true;
+
+            Papa.parse(file, {
+                header: false, skipEmptyLines: true,
+                complete: (results) => {
+                    state.rawRows = results.data;
+                    state.headers = results.data[0];
+                    state.delimiter = results.meta.delimiter;
+                    
+                    updateStatsUI();
+                    
+                    // 初始化規則 (預設 Keep)
+                    state.headers.forEach((h, i) => state.columnRules[i] = 'keep');
+                    renderRules();
+                    updatePreview(); // 觸發首次預覽
+                    
+                    elements.btnDownload.disabled = false;
+                }
+            });
+        }
+
+        function updateStatsUI() {
+            elements.delimiterDisplay.innerText = state.delimiter === ',' ? 'CSV (逗號)' : (state.delimiter === '\t' ? 'TSV (Tab)' : state.delimiter);
+            elements.rowCount.innerText = (state.rawRows.length > 0 ? state.rawRows.length - 1 : 0).toLocaleString();
+            document.getElementById('col-count-badge').innerText = `${state.headers.length} 欄`;
+        }
+
+        // --- 3. 規則介面 ---
+
+        function renderRules() {
+            elements.rulesContainer.innerHTML = state.headers.map((h, i) => `
+                <div class="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700">
+                    <span class="text-xs font-medium truncate max-w-[100px] text-slate-300" title="${h}">${h}</span>
+                    <select onchange="updateRule(${i}, this.value)" id="rule-select-${i}" class="bg-slate-800 text-xs border border-slate-600 rounded p-1 focus:outline-none text-white w-32 cursor-pointer hover:border-indigo-500">
+                        <option value="keep">保留原始</option>
+                        <option value="mask">遮罩 (Mask)</option>
+                        <option value="hash">雜湊 (Hash)</option>
+                        <option value="date_ymd">日期 (YMD)</option>
+                        <option value="empty">清空</option>
+                    </select>
+                </div>
+            `).join('');
+            
+            // 同步 UI 狀態
+            state.headers.forEach((h, i) => {
+                document.getElementById(`rule-select-${i}`).value = state.columnRules[i];
+            });
+        }
+
+        window.updateRule = (idx, rule) => {
+            state.columnRules[idx] = rule;
+            updatePreview();
+        };
+
+        // --- 4. 預覽控制 (New!) ---
+
+        elements.previewLimitSelect.onchange = (e) => {
+            state.previewLimit = e.target.value;
+            updatePreview();
+        };
+
+        elements.fullTextToggle.onchange = (e) => {
+            state.showFullText = e.target.checked;
+            updatePreview();
+        };
+
+        async function updatePreview() {
+            if (state.rawRows.length <= 1) return;
+
+            // 1. 決定要顯示幾筆
+            let limit = (state.previewLimit === 'all') ? state.rawRows.length - 1 : parseInt(state.previewLimit);
+            limit = Math.min(limit, state.rawRows.length - 1);
+            
+            const previewRows = state.rawRows.slice(1, limit + 1);
+
+            // 2. CSS 樣式決定 (截斷 vs 換行)
+            const textClass = state.showFullText 
+                ? "break-all whitespace-normal" 
+                : "truncate max-w-[300px]";
+
+            // 3. 批次處理資料
+            const processedPreviewPromises = previewRows.map(async (row) => {
+                 return Promise.all(row.map((cell, idx) => {
+                     const rule = state.columnRules[idx] || 'keep';
+                     return transforms[rule](cell);
+                 }));
+            });
+            const processedPreviewData = await Promise.all(processedPreviewPromises);
+
+            // 4. 渲染表格
+            elements.previewBody.innerHTML = previewRows.map((row, i) => {
+                const processedRow = processedPreviewData[i];
+                
+                // 將陣列轉為字串顯示，方便閱讀
+                const rawDisplay = row.join(' | ');
+                const proDisplay = processedRow.join(' | ');
+
+                return `
+                    <tr class="hover:bg-slate-800/50 transition-colors group">
+                        <td class="p-3 text-slate-500 font-mono text-xs border-b border-slate-800 align-top text-center">${i+1}</td>
+                        <td class="p-3 text-slate-400 text-xs border-b border-slate-800 align-top">
+                            <div class="${textClass}" title="${rawDisplay}">${rawDisplay}</div>
+                        </td>
+                        <td class="p-3 text-indigo-300 text-xs font-mono border-b border-slate-800 align-top bg-indigo-900/5">
+                            <div class="${textClass}" title="${proDisplay}">${proDisplay}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // --- 5. 智慧判斷邏輯 ---
+
+        document.getElementById('btn-auto-rule').onclick = () => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const phoneRegex = /^[\d\+\-\(\)\s]{8,}$/;
+            // 取樣檢查
+            const sampleRow = state.rawRows.length > 1 ? state.rawRows[1] : null;
+
+            state.headers.forEach((h, i) => {
+                const name = h.toLowerCase();
+                const sampleContent = sampleRow ? sampleRow[i] : "";
+
+                // 優先級邏輯
+                if (sampleContent && dayjs(sampleContent).isValid() && (name.includes('date') || name.includes('time') || name.includes('日期'))) {
+                    state.columnRules[i] = 'date_ymd';
+                } 
+                else if (emailRegex.test(sampleContent) || name.includes('mail')) {
+                    state.columnRules[i] = 'mask';
+                }
+                else if (name.includes('phone') || name.includes('tel') || name.includes('身分證') || phoneRegex.test(sampleContent)) {
+                    state.columnRules[i] = 'mask';
+                }
+                else if (name.includes('id') || name.includes('編號') || name.includes('key')) {
+                    state.columnRules[i] = 'hash';
+                }
+            });
+            renderRules();
+            updatePreview();
+        };
+
+        // --- 6. 下載輸出 ---
+
+        elements.btnDownload.onclick = async () => {
+            setLoading(true);
+            await new Promise(r => setTimeout(r, 50)); // 讓 UI 刷新
+
+            try {
+                // 全量處理
+                const finalDataPromises = state.rawRows.map(async (row, rIdx) => {
+                    if (rIdx === 0) return row;
+                    return Promise.all(row.map((cell, cIdx) => {
+                        const rule = state.columnRules[cIdx] || 'keep';
+                        return transforms[rule](cell);
+                    }));
+                });
+
+                const finalData = await Promise.all(finalDataPromises);
+                
+                // 產生 CSV
+                const csv = Papa.unparse(finalData);
+                const bom = document.getElementById('excel-bom').value === 'yes' ? '\uFEFF' : '';
+                const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+                
+                // 觸發下載
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = document.getElementById('output-filename').value || 'anonymized.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error(e);
+                alert("處理發生錯誤，請查看 Console");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        function setLoading(isLoading) {
+            elements.btnDownload.disabled = isLoading;
+            elements.btnDownloadText.classList.toggle('hidden', isLoading);
+            elements.btnDownloadSpinner.classList.toggle('hidden', !isLoading);
+        }
+
+        document.getElementById('btn-reset').onclick = () => location.reload();
+
+    </script>
+</body>
+</html>

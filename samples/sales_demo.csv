@@ -1,0 +1,6 @@
+Transaction_ID,Customer_Name,Product,Amount,Currency,Timestamp,Payment_Method
+TXN-20240101-001,李大衛,iPhone 15 Pro,36900,TWD,2024-01-01 10:30:05,Credit Card
+TXN-20240101-002,Jessica Brown,AirPods Pro,7490,TWD,2024/01/01 11:15:22,Apple Pay
+TXN-20240102-005,林雅婷,MacBook Air,35900,TWD,2024-01-02T14:20:00,Line Pay
+TXN-20240103-012,Mike Johnson,USB-C Cable,590,TWD,Jan 03 2024 09:00 PM,Cash
+TXN-20240104-008,王曉華,iPad Air,19900,TWD,2024.01.04 16:45:10,Credit Card

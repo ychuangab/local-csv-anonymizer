@@ -1,0 +1,6 @@
+Employee_ID,Name,Email,National_ID,Phone,Department,Onboard_Date,Salary
+E001,王小明,wang.min@company.com,A123456789,0912-345-678,Engineering,2023/01/15,80000
+E002,Sarah Lee,sarah.lee@gmail.com,B223456789,0922-111-222,Marketing,2022-11-01,75000
+E003,張志豪,howard_chang@yahoo.com.tw,C188293041,0933999888,Sales,2021.05.20,62000
+E004,陳美惠,mei.chen88@hotmail.com,D293847102,0910-000-123,HR,Jan 10 2024,58000
+E005,David Wu,david.wu@tech-corp.org,E102938475,+886955666777,Engineering,2023/12/5,92000
